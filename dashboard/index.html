@@ -1,1 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contrôle d'accès RFID - Tableau de bord</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card-bg: #ffffff;
+    --text: #1c2430;
+    --muted: #6b7684;
+    --border: #e3e7ed;
+    --accent: #2f6feb;
+    --ok: #1a8754;
+    --ok-bg: #e7f7ef;
+    --refused: #c0362c;
+    --refused-bg: #fdecea;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181f;
+      --card-bg: #1c222c;
+      --text: #eef1f5;
+      --muted: #93a0b1;
+      --border: #2b323f;
+      --ok-bg: #103322;
+      --refused-bg: #3a1917;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181f;
+    --card-bg: #1c222c;
+    --text: #eef1f5;
+    --muted: #93a0b1;
+    --border: #2b323f;
+    --ok-bg: #103322;
+    --refused-bg: #3a1917;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  header {
+    padding: 20px 16px 12px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sous-titre { color: var(--muted); font-size: 0.9rem; }
+  .conteneur { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+  .cartes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .carte {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .carte .nombre { font-size: 1.6rem; font-weight: 700; }
+  .carte .label { font-size: 0.78rem; color: var(--muted); }
+  .onglets { display: flex; gap: 8px; margin: 20px 0 10px; }
+  .onglet {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .onglet.actif { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .tableau-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--card-bg); }
+  table { width: 100%; border-collapse: collapse; min-width: 480px; }
+  th, td { padding: 10px 12px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .statut { padding: 3px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .statut.autorise { background: var(--ok-bg); color: var(--ok); }
+  .statut.refuse { background: var(--refused-bg); color: var(--refused); }
+  .vide { text-align: center; padding: 30px; color: var(--muted); font-size: 0.9rem; }
+  .pied { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 16px; }
+  .erreur { background: var(--refused-bg); color: var(--refused); padding: 10px 14px; border-radius: 10px; margin: 12px 0; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔐 Contrôle d'accès RFID</h1>
+  <div class="sous-titre">Tableau de bord des accès — Projet n°4</div>
+</header>
 
+<div class="conteneur">
+  <div class="cartes">
+    <div class="carte"><div class="nombre" id="total">–</div><div class="label">Accès total</div></div>
+    <div class="carte"><div class="nombre" id="autorises" style="color:var(--ok)">–</div><div class="label">Autorisés</div></div>
+    <div class="carte"><div class="nombre" id="refuses" style="color:var(--refused)">–</div><div class="label">Refusés</div></div>
+  </div>
+
+  <div id="zoneErreur"></div>
+
+  <div class="onglets">
+    <div class="onglet actif" id="ongletTous" onclick="changerVue('tous')">Tous les accès</div>
+    <div class="onglet" id="ongletRefuses" onclick="changerVue('refuses')">Tentatives refusées</div>
+  </div>
+
+  <div class="tableau-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>Nom</th>
+          <th>UID badge</th>
+          <th>Date &amp; heure</th>
+        </tr>
+      </thead>
+      <tbody id="corpsTableau">
+        <tr><td colspan="4" class="vide">Chargement...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pied" id="miseAJour">—</div>
+</div>
+
+<script>
+  const FIREBASE_HOST = "https://controle-acces-rfid-521df-default-rtdb.firebaseio.com";
+
+  let vueActuelle = "tous";
+  let toutesLesEntrees = [];
+
+  function changerVue(vue) {
+    vueActuelle = vue;
+    document.getElementById("ongletTous").classList.toggle("actif", vue === "tous");
+    document.getElementById("ongletRefuses").classList.toggle("actif", vue === "refuses");
+    afficher();
+  }
+
+  function afficher() {
+    const corps = document.getElementById("corpsTableau");
+    let entrees = toutesLesEntrees;
+    if (vueActuelle === "refuses") {
+      entrees = entrees.filter(e => e.statut === "refuse");
+    }
+
+    if (entrees.length === 0) {
+      corps.innerHTML = '<tr><td colspan="4" class="vide">Aucune donnée pour le moment</td></tr>';
+      return;
+    }
+
+    corps.innerHTML = entrees.map(e => `
+      <tr>
+        <td><span class="statut ${e.statut === 'autorise' ? 'autorise' : 'refuse'}">${e.statut === 'autorise' ? 'Autorisé' : 'Refusé'}</span></td>
+        <td>${e.nom || '—'}</td>
+        <td>${e.uid || '—'}</td>
+        <td>${e.date_heure || '—'}</td>
+      </tr>
+    `).join("");
+  }
+
+  function mettreAJourCartes() {
+    document.getElementById("total").textContent = toutesLesEntrees.length;
+    document.getElementById("autorises").textContent = toutesLesEntrees.filter(e => e.statut === "autorise").length;
+    document.getElementById("refuses").textContent = toutesLesEntrees.filter(e => e.statut === "refuse").length;
+  }
+
+  async function chargerDonnees() {
+    try {
+      const reponse = await fetch(`${FIREBASE_HOST}/acces.json`);
+      if (!reponse.ok) throw new Error("Erreur réseau : " + reponse.status);
+      const data = await reponse.json();
+
+      document.getElementById("zoneErreur").innerHTML = "";
+
+      if (!data) {
+        toutesLesEntrees = [];
+      } else {
+        toutesLesEntrees = Object.values(data).sort((a, b) => {
+          return (b.date_heure || "").localeCompare(a.date_heure || "");
+        });
+      }
+
+      mettreAJourCartes();
+      afficher();
+      document.getElementById("miseAJour").textContent =
+        "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR");
+    } catch (err) {
+      document.getElementById("zoneErreur").innerHTML =
+        '<div class="erreur">Impossible de charger les données. Vérifie l\'URL Firebase et ta connexion.</div>';
+      console.error(err);
+    }
+  }
+
+  chargerDonnees();
+  setInterval(chargerDonnees, 5000);
+</script>
+</body>
+</html>
