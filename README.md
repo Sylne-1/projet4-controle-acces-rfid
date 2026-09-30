@@ -66,3 +66,46 @@ Simulation complète disponible sur Wokwi :
 ### Ajouter un nouveau badge
 
 Depuis le moniteur série, taper :
+puis présenter le badge au lecteur. Il est alors enregistré sur la carte SD.
+
+### Lister les badges enregistrés
+
+Taper `LIST` dans le moniteur série.
+
+## Tableau de bord web
+
+Le fichier `dashboard/index.html` affiche en temps réel :
+- Le nombre total d'accès, autorisés et refusés
+- Un tableau complet de tous les accès (nom, UID, statut, date/heure)
+- Un onglet dédié aux tentatives d'accès refusées
+
+Il se connecte directement à la base Firebase Realtime Database et s'actualise automatiquement toutes les 5 secondes.
+
+**Captures d'écran :**
+
+*(à ajouter dans le dossier `docs/` puis référencées ici)*
+
+## Installation et utilisation
+
+### 1. Simulation
+
+1. Ouvrir le projet sur Wokwi : https://wokwi.com/projects/476445924677929985
+2. Dans l'onglet **Library Manager**, vérifier que les bibliothèques suivantes sont installées :
+   - MFRC522
+   - Adafruit SSD1306
+   - Adafruit GFX Library
+   - ESP32Servo
+3. Lancer la simulation avec le bouton **▶ Play**.
+
+### 2. Base de données Firebase
+
+1. Créer un projet sur [Firebase Console](https://console.firebase.google.com)
+2. Activer **Realtime Database** en mode test
+3. Copier l'URL de la base et la renseigner dans la variable `FIREBASE_HOST` du fichier `src/controle_acces.ino` et de `dashboard/index.html`
+
+### 3. Tableau de bord
+
+Ouvrir `dashboard/index.html` dans un navigateur, ou héberger le dossier `dashboard/` via **GitHub Pages** (Settings → Pages → source : dossier `/dashboard`).
+
+## Structure du dépôt
+
