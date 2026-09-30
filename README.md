@@ -109,17 +109,21 @@ Ouvrir `dashboard/index.html` dans un navigateur, ou héberger le dossier `dashb
 
 ## Limites du projet
 
-- **Dépendance à la connexion réseau :** Le transfert des données d'accès vers Firebase nécessite une connexion Wi-Fi stable. En cas de coupure réseau, les logs instantanés ne sont pas enregistrés en ligne.
-- **Sécurité RFID (UID) :** Les cartes/badges RFID 13.56 MHz standards (MFRC522) utilisent une identification basée sur l'UID, ce qui les rend vulnérables au clonage par un équipement spécialisé.
-- **Stockage de la carte SD :** Si la carte SD est retirée ou endommagée, le système ne peut plus vérifier la liste d'autorisations locale.
-- **Capacité de la mémoire de simulation :** Dans l'environnement de simulation Wokwi, la gestion simultanée des bibliothèques Wi-Fi, SPI et OLED peut approcher les limites de mémoire et de temps de réponse du simulateur.
+- **Risque de talonnage (*tailgating*) :** La porte reste ouverte pendant une durée fixe (3 secondes) après la validation d'un badge. Cela permet à une deuxième personne de s'infiltrer à la suite d'un utilisateur autorisé sans présenter de badge.
+- **Dépendance à la connexion réseau :** Le transfert des données vers Firebase nécessite un réseau Wi-Fi stable. En cas de coupure, les tentatives d'accès ne sont pas transmises au tableau de bord.
+- **Sécurité des badges (UID) :** Le lecteur MFRC522 utilise uniquement l'identifiant unique (UID) du badge, ce qui rend les cartes vulnérables au clonage par un équipement tiers.
+- **Dépendance à la carte SD :** Si la carte SD est absente ou défectueuse, le système ne peut plus vérifier la liste d'autorisations locale.
 
 ## Améliorations futures
 
-- **Gestion du mode hors-ligne (Offline Storage) :** Sauvegarder les logs d'accès localement sur la carte SD en cas de perte Wi-Fi, puis les synchroniser automatiquement dès le rétablissement de la connexion avec Firebase.
-- **Sécurisation renforcée :** Implémenter des cartes avec chiffrement (ex: MIFARE DESFire) ou ajouter un second facteur d'authentification (ex: code PIN sur clavier à membrane ou reconnaissance biométrique).
-- **Interface de gestion d'utilisateurs via le Dashboard :** Permettre l'ajout, la modification ou la révocation de badges directement depuis le tableau de bord web sans passer par la console série.
-- **Notifications instantanées :** Intégrer un service de notifications (ex: Pushbullet, Telegram ou e-mail) lors d'une tentative d'accès non autorisée répétée.
-- **Chiffrement des données :** Sécuriser les échanges entre l'ESP32 et Firebase à l'aide de jetons d'authentification et de liaisons HTTPS/TLS.
+- **Système anti-talonnage par capteurs de présence :** Ajouter deux capteurs de présence (infrarouges ou ultrasons HC-SR04) pour mesurer le passage individuel :
+  - Fermeture immédiate du servomoteur dès que la première personne a franchi la porte, sans attendre la fin des 3 secondes.
+  - Déclenchement d'une alerte sonore/visuelle et enregistrement d'une tentative de fraude dans Firebase si une deuxième personne tente d'entrer.
+- **Gestion du mode hors-ligne :** Enregistrer l'historique des accès sur la carte SD en cas de perte de connexion Wi-Fi, puis le synchroniser automatiquement dès le retour du réseau.
+- **Sécurisation des badges :** Implémenter des cartes chiffrées (type MIFARE DESFire) ou ajouter un second facteur d'authentification (code PIN sur clavier).
+
+
+
+
 
 
