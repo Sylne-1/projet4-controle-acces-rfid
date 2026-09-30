@@ -83,7 +83,7 @@ Il se connecte directement à la base Firebase Realtime Database et s'actualise 
 
 **Captures d'écran :**
 
-*(à ajouter dans le dossier `docs/` puis référencées ici)*
+*( dans le dossier `docs/`)*
 
 ## Installation et utilisation
 
