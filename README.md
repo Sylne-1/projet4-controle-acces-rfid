@@ -107,5 +107,19 @@ Il se connecte directement à la base Firebase Realtime Database et s'actualise 
 
 Ouvrir `dashboard/index.html` dans un navigateur, ou héberger le dossier `dashboard/` via **GitHub Pages** (Settings → Pages → source : dossier `/dashboard`).
 
-## Structure du dépôt
+## Limites du projet
+
+- **Dépendance à la connexion réseau :** Le transfert des données d'accès vers Firebase nécessite une connexion Wi-Fi stable. En cas de coupure réseau, les logs instantanés ne sont pas enregistrés en ligne.
+- **Sécurité RFID (UID) :** Les cartes/badges RFID 13.56 MHz standards (MFRC522) utilisent une identification basée sur l'UID, ce qui les rend vulnérables au clonage par un équipement spécialisé.
+- **Stockage de la carte SD :** Si la carte SD est retirée ou endommagée, le système ne peut plus vérifier la liste d'autorisations locale.
+- **Capacité de la mémoire de simulation :** Dans l'environnement de simulation Wokwi, la gestion simultanée des bibliothèques Wi-Fi, SPI et OLED peut approcher les limites de mémoire et de temps de réponse du simulateur.
+
+## Améliorations futures
+
+- **Gestion du mode hors-ligne (Offline Storage) :** Sauvegarder les logs d'accès localement sur la carte SD en cas de perte Wi-Fi, puis les synchroniser automatiquement dès le rétablissement de la connexion avec Firebase.
+- **Sécurisation renforcée :** Implémenter des cartes avec chiffrement (ex: MIFARE DESFire) ou ajouter un second facteur d'authentification (ex: code PIN sur clavier à membrane ou reconnaissance biométrique).
+- **Interface de gestion d'utilisateurs via le Dashboard :** Permettre l'ajout, la modification ou la révocation de badges directement depuis le tableau de bord web sans passer par la console série.
+- **Notifications instantanées :** Intégrer un service de notifications (ex: Pushbullet, Telegram ou e-mail) lors d'une tentative d'accès non autorisée répétée.
+- **Chiffrement des données :** Sécuriser les échanges entre l'ESP32 et Firebase à l'aide de jetons d'authentification et de liaisons HTTPS/TLS.
+
 
