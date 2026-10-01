@@ -86,6 +86,262 @@ Il se connecte directement à la base Firebase Realtime Database et s'actualise 
 *( dans le dossier `docs/`)*
 ## Le code source complet (fichier .ino)
 
+/*
+  Projet n°4 - Contrôle d'accès RFID multi-utilisateurs
+  Partie 2 : ajout du WiFi, de l'horodatage (NTP) et de l'envoi
+  de chaque accès vers Firebase Realtime Database.
+*/
+
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <SPI.h>
+#include <SD.h>
+#include <MFRC522.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <ESP32Servo.h>
+#include <time.h>
+
+// ---------- WiFi (réseau simulé par Wokwi) ----------
+const char* WIFI_SSID = "Wokwi-GUEST";
+const char* WIFI_PASS = "";
+
+// ---------- Firebase ----------
+// Remplace par l'URL de TA base, SANS le "/" à la fin
+const char* FIREBASE_HOST = "https://controle-acces-rfid-521df-default-rtdb.firebaseio.com/";
+// ---------- Broches ----------
+#define RFID_SS   5
+#define RFID_RST  27
+#define SD_CS     4
+#define SERVO_PIN 13
+#define OLED_SDA  21
+#define OLED_SCL  22
+
+// ---------- Objets ----------
+MFRC522 rfid(RFID_SS, RFID_RST);
+Adafruit_SSD1306 oled(128, 64, &Wire, -1);
+Servo servo;
+
+const char* FICHIER_BADGES = "/badges.txt";
+bool modeAjout = false;
+String nomAjout = "";
+
+// ---------- Affichage OLED ----------
+void afficher(const String& l1, const String& l2 = "", const String& l3 = "") {
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  oled.setTextSize(2);
+  oled.setCursor(0, 0);
+  oled.println(l1);
+  oled.setTextSize(1);
+  oled.setCursor(0, 30);
+  oled.println(l2);
+  oled.println(l3);
+  oled.display();
+}
+
+// ---------- WiFi ----------
+void connecterWiFi() {
+  afficher("WiFi...", "Connexion en cours");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  int tentatives = 0;
+  while (WiFi.status() != WL_CONNECTED && tentatives < 20) {
+    delay(500);
+    Serial.print(".");
+    tentatives++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connecte, IP : " + WiFi.localIP().toString());
+  } else {
+    Serial.println("\nWiFi NON connecte (le journal ne sera pas envoye)");
+  }
+}
+
+// ---------- Heure (NTP) ----------
+void configurerHeure() {
+  configTime(3600, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("Synchronisation de l'heure");
+  struct tm infoHeure;
+  int tentatives = 0;
+  while (!getLocalTime(&infoHeure) && tentatives < 10) {
+    Serial.print(".");
+    delay(500);
+    tentatives++;
+  }
+  Serial.println();
+}
+
+String dateHeureActuelle() {
+  struct tm infoHeure;
+  if (!getLocalTime(&infoHeure)) return "date-inconnue";
+  char buf[25];
+  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &infoHeure);
+  return String(buf);
+}
+
+// ---------- Envoi d'un accès vers Firebase ----------
+void envoyerFirebase(const String& uid, const String& nom, const String& statut) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  String url = String(FIREBASE_HOST) + "/acces/" + String(millis()) + ".json";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+
+  String json = "{";
+  json += "\"uid\":\"" + uid + "\",";
+  json += "\"nom\":\"" + nom + "\",";
+  json += "\"statut\":\"" + statut + "\",";
+  json += "\"date_heure\":\"" + dateHeureActuelle() + "\"";
+  json += "}";
+
+  int code = http.PUT(json);
+  Serial.println("Envoi Firebase (" + statut + ") -> code : " + String(code));
+  http.end();
+}
+
+// ---------- UID du badge lu, en texte ----------
+String uidEnTexte() {
+  String s = "";
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    if (rfid.uid.uidByte[i] < 0x10) s += "0";
+    s += String(rfid.uid.uidByte[i], HEX);
+  }
+  s.toUpperCase();
+  return s;
+}
+
+// ---------- Gestion de la liste sur SD ----------
+bool chercherBadge(const String& uid, String& nom) {
+  File f = SD.open(FICHIER_BADGES, FILE_READ);
+  if (!f) return false;
+  while (f.available()) {
+    String ligne = f.readStringUntil('\n');
+    ligne.trim();
+    int p = ligne.indexOf(';');
+    if (p < 0) continue;
+    if (ligne.substring(0, p) == uid) {
+      nom = ligne.substring(p + 1);
+      f.close();
+      return true;
+    }
+  }
+  f.close();
+  return false;
+}
+
+void ajouterBadge(const String& uid, const String& nom) {
+  File f = SD.open(FICHIER_BADGES, FILE_APPEND);
+  if (f) {
+    f.println(uid + ";" + nom);
+    f.close();
+  }
+}
+
+void listerBadges() {
+  File f = SD.open(FICHIER_BADGES, FILE_READ);
+  if (!f) {
+    Serial.println("Aucun badge enregistre.");
+    return;
+  }
+  Serial.println("--- Badges autorises ---");
+  while (f.available()) Serial.write(f.read());
+  f.close();
+  Serial.println("------------------------");
+}
+
+// ---------- Servo ----------
+void ouvrirPorte() {
+  servo.write(90);
+  delay(3000);
+  servo.write(0);
+}
+
+// ---------- Commandes série ----------
+void lireCommandes() {
+  if (!Serial.available()) return;
+  String cmd = Serial.readStringUntil('\n');
+  cmd.trim();
+  if (cmd.startsWith("ADD ")) {
+    nomAjout = cmd.substring(4);
+    modeAjout = true;
+    Serial.println("Presentez le badge de : " + nomAjout);
+    afficher("MODE AJOUT", nomAjout, "Presentez le badge");
+  } else if (cmd == "LIST") {
+    listerBadges();
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(RFID_SS, OUTPUT);
+  digitalWrite(RFID_SS, HIGH);
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(SD_CS, HIGH);
+
+  Wire.begin(OLED_SDA, OLED_SCL);
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("Erreur : OLED introuvable");
+  }
+  afficher("Demarrage", "Veuillez patienter");
+
+  SPI.begin(18, 19, 23);
+
+  if (!SD.begin(SD_CS)) {
+    Serial.println("Erreur : carte SD introuvable");
+    afficher("ERREUR", "Carte SD absente");
+    while (true) delay(1000);
+  }
+
+  rfid.PCD_Init();
+
+  servo.attach(SERVO_PIN, 500, 2400);
+  servo.write(0);
+
+  connecterWiFi();
+  if (WiFi.status() == WL_CONNECTED) configurerHeure();
+
+  Serial.println("Systeme pret.");
+  Serial.println("Commandes : ADD Nom  |  LIST");
+  afficher("Pret", "Presentez un badge");
+}
+
+void loop() {
+  lireCommandes();
+
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return;
+
+  String uid = uidEnTexte();
+  Serial.println("Badge lu : " + uid);
+
+  if (modeAjout) {
+    ajouterBadge(uid, nomAjout);
+    Serial.println("Badge ajoute : " + nomAjout);
+    afficher("BADGE AJOUTE", nomAjout);
+    modeAjout = false;
+    delay(2000);
+  } else {
+    String nom;
+    if (chercherBadge(uid, nom)) {
+      Serial.println("ACCES AUTORISE : " + nom);
+      afficher("AUTORISE", nom);
+      envoyerFirebase(uid, nom, "autorise");
+      ouvrirPorte();
+    } else {
+      Serial.println("ACCES REFUSE : " + uid);
+      afficher("REFUSE", "UID inconnu", uid);
+      envoyerFirebase(uid, "inconnu", "refuse");
+      delay(2000);
+    }
+  }
+
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+  afficher("Pret", "Presentez un badge");
+}
+
 ## Installation et utilisation
 
 ### 1. Simulation
