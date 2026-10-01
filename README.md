@@ -32,7 +32,7 @@ Simulation complète disponible sur Wokwi :
 🔗 **https://wokwi.com/projects/476445924677929985**
 
 | Composant | Broche | ESP32 |
-|---|---|---|
+
 | MFRC522 | SDA | GPIO 5 |
 | MFRC522 | SCK | GPIO 18 |
 | MFRC522 | MOSI | GPIO 23 |
