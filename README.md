@@ -84,6 +84,7 @@ Il se connecte directement à la base Firebase Realtime Database et s'actualise 
 **Captures d'écran et simulation de la video sur Wokwi :**
 
 *( dans le dossier `docs/`)*
+## Le code source complet (fichier .ino)
 
 ## Installation et utilisation
 
