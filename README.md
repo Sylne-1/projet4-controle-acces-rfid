@@ -81,7 +81,7 @@ Le fichier `dashboard/index.html` affiche en temps réel :
 
 Il se connecte directement à la base Firebase Realtime Database et s'actualise automatiquement toutes les 5 secondes.
 
-**Captures d'écran :**
+**Captures d'écran et simulation de la video sur Wokwi :**
 
 *( dans le dossier `docs/`)*
 
